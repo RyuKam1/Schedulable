@@ -190,22 +190,45 @@
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(99, 102, 241, 0.8);
       }
+      input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        opacity: 0.85;
+        cursor: pointer;
+      }
+      input[type="time"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+      }
       .clock-shadow {
         filter: drop-shadow(0px 10px 25px rgba(0, 0, 0, 0.6));
       }
       .sector-transition {
         transition:
-          transform 0.15s ease,
-          filter 0.15s ease,
-          opacity 0.15s ease;
+          transform 0.2s ease,
+          filter 0.2s ease,
+          opacity 0.2s ease;
       }
       .sector-transition:hover {
-        filter: brightness(1.3)
-          drop-shadow(0px 0px 8px rgba(255, 255, 255, 0.3));
+        filter: brightness(1.15)
+          drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.22));
       }
       .break-draggable {
         cursor: grab;
         touch-action: none;
+        transition: filter 0.2s ease;
+      }
+      .break-draggable:hover {
+        filter: brightness(1.12)
+          drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.22));
+      }
+      .clock-tooltip-card {
+        transition:
+          left 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+          top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+          translate 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+          max-width 0.15s ease-out,
+          padding 0.15s ease-out,
+          border-color 0.15s ease-out,
+          box-shadow 0.15s ease-out;
       }
       .break-draggable:active,
       .break-dragging {
@@ -1285,7 +1308,7 @@
                         :value="formatMinToTimeInput(obrk.startMin)"
                         @input="updateOvertimeBreakFromInput(obrk, $event.target.value, false)"
                         @change="updateOvertimeBreakFromInput(obrk, $event.target.value, true)"
-                        class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-purple-300 focus:ring-1 focus:ring-purple-500 outline-none w-24 shrink-0 text-center"
+                        class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-purple-300 focus:ring-1 focus:ring-purple-500 outline-none w-32 shrink-0 text-center"
                       />
 
                       <button
@@ -1377,7 +1400,7 @@
                       :value="formatMinToTimeInput(brk.startMin)"
                       @input="updateBreakFromInput(brk, $event.target.value, false)"
                       @change="updateBreakFromInput(brk, $event.target.value, true)"
-                      class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-brand-300 focus:ring-1 focus:ring-brand-500 outline-none w-24 shrink-0 text-center"
+                      class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-brand-300 focus:ring-1 focus:ring-brand-500 outline-none w-32 shrink-0 text-center"
                     />
                   </div>
 
@@ -1741,11 +1764,9 @@
                 x-transition:enter-start="opacity-0 scale-95"
                 x-transition:enter-end="opacity-100 scale-100"
                 style="display: none"
-                :class="[
-                                 dynamicTooltipCornerClass,
-                                 draggingBreakId !== null ? 'px-3 py-2 max-w-[215px] border-brand-500/50 shadow-[0_8px_24px_rgba(0,0,0,0.75)]' : 'px-3.5 py-2.5 max-w-[235px] border-slate-700/90 shadow-2xl'
-                             ]"
-                class="absolute pointer-events-none bg-slate-950/95 border backdrop-blur-md rounded-xl text-xs z-30 transition-all duration-150 ease-out"
+                :style="dynamicTooltipPositionStyle"
+                :class="draggingBreakId !== null ? 'px-3 py-2 max-w-[215px] border-brand-500/50 shadow-[0_8px_24px_rgba(0,0,0,0.75)]' : 'px-3.5 py-2.5 max-w-[235px] border-slate-700/90 shadow-2xl'"
+                class="clock-tooltip-card absolute pointer-events-none bg-slate-950/95 border backdrop-blur-md rounded-xl text-xs z-30"
               >
                 <template x-if="activeTooltipSector">
                   <div class="text-left">
@@ -2481,7 +2502,7 @@
           // Drag state for interactive break blocks on SVG dial (shift & overtime)
           draggingBreakId: null,
           draggingIsOvertime: false,
-          dragLastAngle: null,
+          dragGrabOffset: 0,
           pointerAngleDeg: 0,
           hoveredSector: null,
 
@@ -3146,16 +3167,17 @@
             return this.hoveredSector;
           },
 
-          get dynamicTooltipCornerClass() {
+          get dynamicTooltipPositionStyle() {
+            // Sits in the quadrant opposite the pointer. Anchored via left/top +
+            // translate (not top/bottom/left/right swaps) so corner moves animate.
             const angle = ((this.pointerAngleDeg % 360) + 360) % 360;
-            if (angle >= 0 && angle < 90) {
-              return "bottom-12 left-2";
-            } else if (angle >= 90 && angle < 180) {
-              return "top-11 left-2";
-            } else if (angle >= 180 && angle < 270) {
-              return "top-11 right-2";
-            }
-            return "bottom-12 right-2";
+            const onLeft = angle < 180;
+            const onTop = angle >= 90 && angle < 270;
+            return {
+              left: onLeft ? "0.5rem" : "calc(100% - 0.5rem)",
+              top: onTop ? "2.75rem" : "calc(100% - 3rem)",
+              translate: `${onLeft ? "0" : "-100%"} ${onTop ? "0" : "-100%"}`,
+            };
           },
 
           setShiftType(type) {
@@ -3666,10 +3688,19 @@
 
           startBreakDrag(event, breakId, isOvertime = false) {
             this.cancelTooltipHide();
+            const list = isOvertime ? this.overtimeBreaks : this.breaks;
+            const brk = list.find((b) => b.id === breakId);
+            if (!brk) return;
             this.draggingBreakId = breakId;
             this.draggingIsOvertime = isOvertime;
-            this.dragLastAngle = this.getPointerAngleDeg(event);
-            this.pointerAngleDeg = this.dragLastAngle;
+            const angle = this.getPointerAngleDeg(event);
+            this.pointerAngleDeg = angle;
+            const period = this.clockMode === "24h" ? 1440 : 720;
+            let offset =
+              ((((angle / 360) * period - brk.startMin) % period) + period) %
+              period;
+            if (offset > period / 2) offset -= period;
+            this.dragGrabOffset = offset;
           },
 
           onDragMove(event) {
@@ -3683,32 +3714,41 @@
             const curAngle = this.getPointerAngleDeg(event);
             this.pointerAngleDeg = curAngle;
 
-            let deltaDeg = curAngle - this.dragLastAngle;
-            if (deltaDeg > 180) deltaDeg -= 360;
-            if (deltaDeg < -180) deltaDeg += 360;
+            const period = this.clockMode === "24h" ? 1440 : 720;
+            const bounds = this.draggingIsOvertime
+              ? this.overtimeRange
+              : { start: this.startMinTotal, end: this.endMinTotal };
+            const minAllowed = bounds.start;
+            const maxAllowed = Math.max(minAllowed, bounds.end - brk.duration);
 
-            const minsPerCircle = this.clockMode === "24h" ? 1440 : 720;
-            const deltaMins = (deltaDeg / 360) * minsPerCircle;
+            // The dial angle maps to many absolute times (one per lap); pick the
+            // lap closest to the allowed range, then closest to the current spot.
+            const base = (curAngle / 360) * period - this.dragGrabOffset;
+            let best = null;
+            for (let k = -3; k <= 3; k++) {
+              const c = base + k * period;
+              const outside =
+                c < minAllowed
+                  ? minAllowed - c
+                  : c > maxAllowed
+                    ? c - maxAllowed
+                    : 0;
+              const near = Math.abs(c - brk.startMin);
+              if (
+                best === null ||
+                outside < best.outside ||
+                (outside === best.outside && near < best.near)
+              ) {
+                best = { c, outside, near };
+              }
+            }
 
-            if (Math.abs(deltaMins) >= 2.5) {
-              const stepMins = Math.round(deltaMins / 5) * 5;
-              if (stepMins !== 0) {
-                const bounds = this.draggingIsOvertime
-                  ? this.overtimeRange
-                  : { start: this.startMinTotal, end: this.endMinTotal };
-                const minAllowed = bounds.start;
-                const maxAllowed = Math.max(
-                  minAllowed,
-                  bounds.end - brk.duration,
-                );
-                brk.startMin = Math.min(
-                  maxAllowed,
-                  Math.max(minAllowed, brk.startMin + stepMins),
-                );
-                this.dragLastAngle = curAngle;
-                if (!this.draggingIsOvertime) {
-                  this.activePreset = "custom";
-                }
+            const snapped = Math.round(best.c / 5) * 5;
+            const next = Math.min(maxAllowed, Math.max(minAllowed, snapped));
+            if (next !== brk.startMin) {
+              brk.startMin = next;
+              if (!this.draggingIsOvertime) {
+                this.activePreset = "custom";
               }
             }
           },
@@ -3718,7 +3758,7 @@
               const wasOvertime = this.draggingIsOvertime;
               this.draggingBreakId = null;
               this.draggingIsOvertime = false;
-              this.dragLastAngle = null;
+              this.dragGrabOffset = 0;
               if (wasOvertime) {
                 this.sortOvertimeBreaksByTime();
               } else {
