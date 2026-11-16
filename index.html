@@ -2910,10 +2910,12 @@
             const blocks = [];
             let cursor = start;
             const minGap = 45;
+            const minEdgeGap = 60;
 
             sorted.forEach((brk) => {
               if (brk.startMin > cursor) {
                 const dur = brk.startMin - cursor;
+                const required = cursor === start ? minEdgeGap : minGap;
                 blocks.push({
                   isBreak: false,
                   isOvertime: false,
@@ -2921,8 +2923,8 @@
                   startMin: cursor,
                   endMin: brk.startMin,
                   duration: dur,
-                  minRequired: minGap,
-                  isValid: dur >= minGap,
+                  minRequired: required,
+                  isValid: dur >= required,
                 });
               }
               blocks.push({
@@ -2947,8 +2949,8 @@
                 startMin: cursor,
                 endMin: end,
                 duration: dur,
-                minRequired: minGap,
-                isValid: dur >= minGap,
+                minRequired: minEdgeGap,
+                isValid: dur >= minEdgeGap,
               });
             }
 
