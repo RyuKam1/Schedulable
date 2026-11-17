@@ -2292,7 +2292,7 @@
         <div class="flex items-center gap-2 font-mono">
           <span class="w-2 h-2 rounded-full bg-brand-400/80"></span>
           <span
-            >Version - 1.54 | Made by
+            >Version - <span x-text="appVersion || '…'">…</span> | Made by
             <span class="text-slate-200 font-semibold">Ryuk</span></span
           >
         </div>
@@ -6141,7 +6141,7 @@
             return [
               "Schedulable — Future Upgrade Review & Feedback",
               `From: ${name}`,
-              `App Version: 1.50`,
+              `App Version: ${this.appVersion || "unknown"}`,
               "",
               "Exact Feedback:",
               feedback,
@@ -6171,7 +6171,7 @@
                 _subject: `Schedulable Upgrade Review from ${name}`,
                 _template: "table",
                 _captcha: "false",
-                App: "Schedulable (v1.50)",
+                App: `Schedulable (v${this.appVersion || "unknown"})`,
                 Name: name,
                 Feedback: feedback,
               };
@@ -6227,7 +6227,7 @@
                     _subject: `Schedulable Upgrade Review from ${name}`,
                     _template: "table",
                     _captcha: "false",
-                    App: "Schedulable (v1.50)",
+                    App: `Schedulable (v${this.appVersion || "unknown"})`,
                     Name: name,
                     Feedback: feedback,
                   }),
