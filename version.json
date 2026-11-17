@@ -1,0 +1,12 @@
+{
+  "version": "1.62.0",
+  "date": "2026-11-17",
+  "title": "Guided tour, responsive design, smoother dial & update alerts",
+  "notes": [
+    "New \"How to use\" guide for a brief overview of the tool and how to use it",
+    "Wider break time inputs with a clearer clock icon",
+    "Navbar redesigned for phones",
+    "You'll now be notified here whenever Schedulable gets an update",
+    "Leave me a feedback for future improvements for you"
+  ]
+}

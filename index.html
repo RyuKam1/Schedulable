@@ -198,6 +198,10 @@
       input[type="time"]::-webkit-calendar-picker-indicator:hover {
         opacity: 1;
       }
+      input[type="time"].cursor-pointer::-webkit-datetime-edit,
+      input[type="time"].cursor-pointer::-webkit-datetime-edit-fields-wrapper {
+        cursor: pointer;
+      }
       .clock-shadow {
         filter: drop-shadow(0px 10px 25px rgba(0, 0, 0, 0.6));
       }
@@ -219,6 +223,59 @@
       .break-draggable:hover {
         filter: brightness(1.12)
           drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.22));
+      }
+      .howto-panel {
+        transition:
+          background-color 0.25s ease,
+          border-color 0.25s ease,
+          box-shadow 0.25s ease;
+      }
+      .howto-fade {
+        transition:
+          opacity 0.25s ease,
+          box-shadow 0.25s ease,
+          border-color 0.25s ease,
+          background-color 0.25s ease,
+          transform 0.25s ease;
+      }
+      .howto-focusing .howto-fade:not(.howto-active) {
+        opacity: 0.08;
+      }
+      .howto-focusing .howto-card.howto-pending {
+        opacity: 0.45;
+        transition-duration: 0.17s;
+      }
+      .howto-card.howto-pending {
+        border-color: rgba(129, 140, 248, 0.45);
+      }
+      .howto-card.howto-active {
+        background-color: rgba(2, 6, 23, 0.96);
+        border-color: rgba(129, 140, 248, 0.75);
+        box-shadow:
+          0 0 0 1px rgba(129, 140, 248, 0.35),
+          0 0 22px rgba(99, 102, 241, 0.45),
+          0 10px 30px rgba(0, 0, 0, 0.6);
+        transform: translateY(-1px);
+      }
+      .howto-backdrop-mask {
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+      }
+      .howto-spotlight-ring {
+        position: absolute;
+        pointer-events: none;
+        border-radius: 18px;
+        border: 1.5px solid rgba(129, 140, 248, 0.8);
+        box-shadow:
+          0 0 0 4px rgba(99, 102, 241, 0.15),
+          0 0 28px rgba(99, 102, 241, 0.45);
+        transition:
+          left 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+          top 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+          width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+          height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .clock-tooltip-card {
         transition:
@@ -272,6 +329,23 @@
       .bell-wiggle {
         transform-origin: top center;
         animation: bellRingWiggle 1.8s ease-in-out infinite;
+      }
+      .update-side-card {
+        position: fixed;
+        z-index: 45;
+        right: 1rem;
+        bottom: 1rem;
+        width: min(19rem, calc(100vw - 2rem));
+      }
+      /* Wide screens: park it centered in the empty gutter right of the max-w-7xl (80rem) layout */
+      @media (min-width: 1856px) {
+        .update-side-card {
+          right: auto;
+          bottom: auto;
+          top: 6rem;
+          width: 16rem;
+          left: calc(75vw + 20rem - 8rem);
+        }
       }
     </style>
   </head>
@@ -337,11 +411,141 @@
       </div>
     </div>
 
+    <!-- Site Update / What's New Side Card (sits in the empty right gutter on wide screens) -->
+    <div
+      x-show="updateCardMode !== null"
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0 translate-x-4"
+      x-transition:enter-end="opacity-100 translate-x-0"
+      x-transition:leave="transition ease-in duration-150"
+      x-transition:leave-start="opacity-100 translate-x-0"
+      x-transition:leave-end="opacity-0 translate-x-4"
+      style="display: none"
+      class="update-side-card"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        class="rounded-2xl bg-slate-900/95 border border-brand-500/40 shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden"
+      >
+        <div
+          class="h-1 w-full bg-gradient-to-r from-brand-500 via-sky-400 to-emerald-400"
+        ></div>
+        <div class="p-4 space-y-3">
+          <!-- Header -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start gap-2.5 min-w-0">
+              <div
+                class="w-8 h-8 rounded-lg bg-brand-500/20 border border-brand-400/35 text-brand-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+              </div>
+              <div class="min-w-0">
+                <p
+                  class="text-xs font-bold text-white leading-snug"
+                  x-text="updateCardMode === 'update' ? 'Schedulable has been updated' : 'What\'s new in Schedulable'"
+                ></p>
+                <p class="text-[10px] font-mono text-brand-300 mt-0.5">
+                  <span
+                    x-text="updateCardInfo ? 'v' + updateCardInfo.version : ''"
+                  ></span>
+                  <span
+                    x-show="updateCardInfo && updateCardInfo.date"
+                    class="text-slate-500"
+                    x-text="updateCardInfo ? ' · ' + updateCardInfo.date : ''"
+                  ></span>
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="dismissUpdateCard()"
+              class="p-1 -mr-1 -mt-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-xs font-mono shrink-0"
+              title="Dismiss"
+              aria-label="Dismiss update card"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Release notes -->
+          <div class="space-y-1.5">
+            <p
+              x-show="updateCardInfo && updateCardInfo.title"
+              class="text-[11px] font-semibold text-slate-200"
+              x-text="updateCardInfo ? updateCardInfo.title : ''"
+            ></p>
+            <ul
+              class="space-y-1 max-h-40 overflow-y-auto pr-1 text-[11px] text-slate-400 leading-snug"
+            >
+              <template
+                x-for="(note, i) in (updateCardInfo && updateCardInfo.notes) || []"
+                :key="i"
+              >
+                <li class="flex gap-1.5">
+                  <span class="text-brand-400 shrink-0">•</span>
+                  <span x-text="note"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+
+          <!-- Update available: refresh -->
+          <div x-show="updateCardMode === 'update'" class="space-y-1.5">
+            <button
+              type="button"
+              @click="refreshForUpdate()"
+              class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md shadow-brand-500/25 transition"
+            >
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              Refresh to update
+            </button>
+            <p class="text-[10px] text-slate-500 text-center">
+              Your schedule is saved — nothing will be lost.
+            </p>
+          </div>
+
+          <!-- What's new: thumbs feedback -->
+          <div
+            x-show="updateCardMode === 'whatsnew'"
+            class="pt-2.5 border-t border-slate-800 flex items-center justify-between gap-2"
+          >
+            <span
+              class="text-[11px] text-slate-400"
+              x-text="updateVote ? 'Thanks for the feedback!' : 'How do you like this update?'"
+            ></span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                @click="voteOnUpdate('up')"
+                :class="updateVote === 'up' ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300' : 'bg-slate-950/70 border-slate-700 text-slate-400 hover:text-emerald-300 hover:border-emerald-500/50'"
+                class="w-8 h-8 rounded-lg border flex items-center justify-center transition"
+                title="I like this update"
+                aria-label="Thumbs up"
+              >
+                <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i>
+              </button>
+              <button
+                type="button"
+                @click="voteOnUpdate('down')"
+                :class="updateVote === 'down' ? 'bg-rose-500/20 border-rose-400/60 text-rose-300' : 'bg-slate-950/70 border-slate-700 text-slate-400 hover:text-rose-300 hover:border-rose-500/50'"
+                class="w-8 h-8 rounded-lg border flex items-center justify-center transition"
+                title="I don't like this update"
+                aria-label="Thumbs down"
+              >
+                <i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <header
       class="border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl sticky top-0 z-50 shadow-lg shadow-black/40"
     >
       <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4"
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 sm:py-0 sm:h-16 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-2.5 sm:gap-4"
       >
         <!-- Logo & Title Section -->
         <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -372,13 +576,52 @@
           </div>
         </div>
 
-        <!-- Header Action Controls & Live Widgets -->
-        <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <!-- Live Real-Time Navbar Clock (Hours, Minutes & Seconds) -->
+        <!-- Mobile-only top-row widgets: live clock + guide -->
+        <div class="flex sm:hidden items-center gap-1.5">
           <button
             type="button"
             @click="clockMode = (clockMode === '12h' ? '24h' : '12h'); saveToStorage()"
             class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/95 hover:bg-slate-800/90 border border-slate-700/80 text-xs font-mono shadow-inner transition"
+            title="Live Real-Time Clock — Tap to toggle 12h / 24h format"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse shrink-0"
+            ></span>
+            <span
+              class="text-slate-100 font-bold tabular-nums tracking-tight"
+              x-text="clockMode === '12h' ? currentTime12Str : currentTimeStr"
+            ></span>
+          </button>
+          <button
+            type="button"
+            @click="howToModalOpen = true"
+            class="flex items-center justify-center w-8 h-8 rounded-xl bg-slate-900/95 hover:bg-brand-600/20 border border-slate-700 hover:border-brand-500/50 text-slate-300 hover:text-brand-200 transition"
+            title="How to use Schedulable"
+            aria-label="How to use Schedulable"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Header Action Controls & Live Widgets (full-width second row on phones) -->
+        <div class="w-full sm:w-auto flex items-center gap-1.5 sm:gap-2.5">
+          <!-- Live Real-Time Navbar Clock (Hours, Minutes & Seconds) -->
+          <button
+            type="button"
+            @click="clockMode = (clockMode === '12h' ? '24h' : '12h'); saveToStorage()"
+            class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/95 hover:bg-slate-800/90 border border-slate-700/80 text-xs font-mono shadow-inner transition"
             title="Live Real-Time Clock — Click to toggle 12h / 24h format"
           >
             <span
@@ -391,14 +634,17 @@
           </button>
 
           <!-- Schedule Rule Check Sign & Interactive Popover -->
-          <div class="relative" @click.outside="rulePopoverOpen = false">
+          <div
+            class="relative flex-1 sm:flex-none"
+            @click.outside="rulePopoverOpen = false"
+          >
             <button
               type="button"
               @click="rulePopoverOpen = !rulePopoverOpen"
               :class="isScheduleValid
                                 ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/45 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.18)]'
                                 : 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/50 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.22)]'"
-              class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition"
+              class="w-full sm:w-auto flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition"
               :title="isScheduleValid ? 'Schedule is valid — All rules passed' : 'Schedule breaks a rule — Click to inspect'"
             >
               <svg
@@ -429,7 +675,7 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
               </svg>
               <span
-                class="hidden md:inline font-mono text-[11px]"
+                class="sm:hidden md:inline font-mono text-[11px]"
                 x-text="isScheduleValid ? 'Valid' : 'Rule Issue'"
               ></span>
             </button>
@@ -444,7 +690,7 @@
               x-transition:leave-start="opacity-100 scale-100 translate-y-0"
               x-transition:leave-end="opacity-0 scale-95 -translate-y-1"
               style="display: none"
-              class="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-950/95 border border-slate-700/90 shadow-2xl backdrop-blur-2xl p-4 z-50 space-y-2.5 text-xs"
+              class="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-950/95 border border-slate-700/90 shadow-2xl backdrop-blur-2xl p-4 z-50 space-y-2.5 text-xs"
             >
               <div
                 class="flex items-center justify-between border-b border-slate-800 pb-2"
@@ -536,14 +782,14 @@
 
           <!-- 5-Minute Alert & Chime Toggle + Preview Button -->
           <div
-            class="inline-flex items-center rounded-xl border overflow-hidden transition"
+            class="flex-1 sm:flex-none inline-flex items-center rounded-xl border overflow-hidden transition"
             :class="notificationsEnabled ? 'bg-amber-500/15 border-amber-500/40' : 'bg-slate-900/90 border-slate-800'"
           >
             <button
               type="button"
               @click="toggleNotifications()"
               :class="notificationsEnabled ? 'text-amber-300 hover:bg-amber-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'"
-              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition"
+              class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition"
               title="Toggle 5-Minute Break & Shift Alerts"
             >
               <svg
@@ -597,24 +843,26 @@
           <button
             type="button"
             @click="openTransferModal()"
-            class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900/95 hover:bg-indigo-600/20 border border-slate-700 hover:border-brand-500/50 text-slate-200 hover:text-brand-200 text-xs font-semibold transition"
+            data-howto-target="port"
+            class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900/95 hover:bg-indigo-600/20 border border-slate-700 hover:border-brand-500/50 text-slate-200 hover:text-brand-200 text-xs font-semibold transition"
             title="Copy or Import Optimized Schedule Data across pages"
           >
             <i
               data-lucide="arrow-left-right"
               class="w-3.5 h-3.5 text-brand-400"
             ></i>
-            <span class="hidden sm:inline">Port</span>
+            <span>Port</span>
           </button>
 
           <!-- Opening Message Split Button + Recessed Compact Edit Trigger -->
           <div
-            class="inline-flex items-stretch rounded-xl bg-brand-600 shadow-md shadow-brand-500/20 border border-brand-400/30 overflow-hidden"
+            data-howto-target="opening"
+            class="flex-1 sm:flex-none inline-flex items-stretch rounded-xl bg-brand-600 shadow-md shadow-brand-500/20 border border-brand-400/30 overflow-hidden"
           >
             <button
               type="button"
               @click="copyOpeningMessage()"
-              class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 hover:bg-brand-500 active:bg-brand-700 text-white text-xs font-semibold transition"
+              class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 hover:bg-brand-500 active:bg-brand-700 text-white text-xs font-semibold transition"
               :title="'Copy Opening Message: ' + openingMessage"
             >
               <svg
@@ -648,6 +896,10 @@
                 class="hidden md:inline"
                 x-text="copied ? 'Copied!' : 'Opening message'"
               ></span>
+              <span
+                class="sm:hidden"
+                x-text="copied ? 'Copied!' : 'Copy'"
+              ></span>
             </button>
             <button
               type="button"
@@ -672,6 +924,29 @@
               </svg>
             </button>
           </div>
+
+          <!-- How To Use Guide Button -->
+          <button
+            type="button"
+            @click="howToModalOpen = true"
+            class="hidden sm:flex items-center justify-center w-8 h-8 rounded-xl bg-slate-900/95 hover:bg-brand-600/20 border border-slate-700 hover:border-brand-500/50 text-slate-300 hover:text-brand-200 transition"
+            title="How to use Schedulable"
+            aria-label="How to use Schedulable"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
         </div>
       </div>
     </header>
@@ -686,7 +961,7 @@
       x-transition:leave-start="opacity-100 translate-y-0 scale-100"
       x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
       style="display: none"
-      class="fixed top-[4.5rem] inset-x-0 z-40 px-4 flex justify-center pointer-events-none"
+      class="fixed top-[6.75rem] sm:top-[4.5rem] inset-x-0 z-40 px-4 flex justify-center pointer-events-none"
     >
       <template x-if="alertBanner">
         <div
@@ -855,7 +1130,10 @@
         <!-- Left Side: Shift & Break Controls (5 cols) -->
         <div class="lg:col-span-5 space-y-6">
           <!-- Shift Settings Card -->
-          <div class="glass-panel rounded-2xl p-5 shadow-xl">
+          <div
+            data-howto-target="shift"
+            class="glass-panel rounded-2xl p-5 shadow-xl scroll-mt-24"
+          >
             <div
               class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4"
             >
@@ -1208,7 +1486,7 @@
                   <input
                     type="time"
                     x-model="customBreakStart"
-                    class="w-full bg-slate-950/90 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-mono text-purple-300 focus:border-purple-500 outline-none"
+                    class="w-full bg-slate-950/90 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-mono text-purple-300 focus:border-purple-500 outline-none cursor-pointer"
                   />
                 </div>
               </div>
@@ -1308,7 +1586,7 @@
                         :value="formatMinToTimeInput(obrk.startMin)"
                         @input="updateOvertimeBreakFromInput(obrk, $event.target.value, false)"
                         @change="updateOvertimeBreakFromInput(obrk, $event.target.value, true)"
-                        class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-purple-300 focus:ring-1 focus:ring-purple-500 outline-none w-32 shrink-0 text-center"
+                        class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-purple-300 focus:ring-1 focus:ring-purple-500 outline-none w-32 shrink-0 text-center cursor-pointer"
                       />
 
                       <button
@@ -1343,7 +1621,10 @@
           </div>
 
           <!-- Regular Shift Break Adjuster Controls -->
-          <div class="glass-panel rounded-2xl p-5 shadow-xl space-y-4">
+          <div
+            data-howto-target="breaks"
+            class="glass-panel rounded-2xl p-5 shadow-xl space-y-4 scroll-mt-24"
+          >
             <div
               class="flex items-center justify-between border-b border-slate-800 pb-3"
             >
@@ -1400,7 +1681,7 @@
                       :value="formatMinToTimeInput(brk.startMin)"
                       @input="updateBreakFromInput(brk, $event.target.value, false)"
                       @change="updateBreakFromInput(brk, $event.target.value, true)"
-                      class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-brand-300 focus:ring-1 focus:ring-brand-500 outline-none w-32 shrink-0 text-center"
+                      class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-brand-300 focus:ring-1 focus:ring-brand-500 outline-none w-32 shrink-0 text-center cursor-pointer"
                     />
                   </div>
 
@@ -1429,7 +1710,8 @@
         <div class="lg:col-span-7 space-y-6">
           <!-- Main Visual Clock Panel (Single Primary Clock) -->
           <div
-            class="glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col items-center"
+            data-howto-target="clock"
+            class="glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col items-center scroll-mt-24"
           >
             <!-- Top Toolbar for Clock Panel -->
             <div class="w-full flex items-center justify-between mb-2 z-10">
@@ -2198,6 +2480,310 @@
       </div>
     </div>
 
+    <!-- How To Use Guide Modal -->
+    <div
+      x-show="howToModalOpen"
+      x-transition:enter="transition ease-out duration-200"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-150"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      @keydown.escape.window="closeHowToModal()"
+      style="display: none"
+      class="fixed inset-0 z-[70] flex items-center justify-center p-4"
+    >
+      <!-- Blurred backdrop; a mask cuts a clear window over the section the hovered card describes -->
+      <div
+        class="howto-backdrop-mask absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+        x-ref="howToBackdrop"
+      ></div>
+      <div
+        x-show="howToRect"
+        x-transition.opacity.duration.200ms
+        style="display: none"
+        class="howto-spotlight-ring"
+        :style="howToRingRect ? { left: (howToRingRect.x - 8) + 'px', top: (howToRingRect.y - 8) + 'px', width: (howToRingRect.w + 16) + 'px', height: (howToRingRect.h + 16) + 'px' } : {}"
+      ></div>
+
+      <div
+        @click.outside="closeHowToModal()"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+        x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+        :class="howToHover !== null ? 'howto-focusing bg-transparent border-transparent shadow-none' : 'bg-slate-900/95 border-brand-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.75)]'"
+        class="howto-panel relative w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col rounded-2xl border overflow-hidden"
+      >
+        <div
+          class="howto-fade h-1 w-full shrink-0 bg-gradient-to-r from-brand-500 via-amber-400 to-emerald-400"
+        ></div>
+
+        <div class="p-5 sm:p-6 space-y-4 overflow-y-auto">
+          <!-- Header -->
+          <div class="howto-fade flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <div
+                class="w-9 h-9 rounded-xl bg-brand-500/20 border border-brand-400/35 text-brand-300 flex items-center justify-center shrink-0"
+              >
+                <svg
+                  class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div>
+                <h3
+                  class="text-sm sm:text-base font-bold text-white tracking-tight"
+                >
+                  How to Use Schedulable
+                </h3>
+                <p class="text-[11px] text-slate-400">
+                  Your personal shift &amp; break planner, in six quick steps
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="closeHowToModal()"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-xs font-mono"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Steps -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              @mouseenter="setHowToHover(1)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(1)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="message-circle" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-sky-400 font-mono mr-1">1</span> Copy your
+                  opening message
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Click <span class="text-slate-200">Opening message</span> in
+                  the navbar to copy it and paste into your chats. Use the
+                  pencil to change the text.
+                </p>
+              </div>
+            </div>
+
+            <div
+              @mouseenter="setHowToHover(2)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(2)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-brand-500/15 border border-brand-500/30 text-brand-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-brand-400 font-mono mr-1">2</span> Set your
+                  shift
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  In <span class="text-slate-200">Shift Settings</span>, pick
+                  Full-Time or Part-Time and enter your start &amp; end times.
+                  Change them freely anytime, and add Overtime if you have it.
+                </p>
+              </div>
+            </div>
+
+            <div
+              @mouseenter="setHowToHover(3)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(3)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="clock" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-indigo-400 font-mono mr-1">3</span> Preview
+                  your day
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  The live clock dial and the timeline table show every work
+                  block and break at a glance. Hover any block for its details.
+                </p>
+              </div>
+            </div>
+
+            <div
+              @mouseenter="setHowToHover(4)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(4)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="move" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-amber-400 font-mono mr-1">4</span> Fit
+                  breaks your way
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Drag breaks on the clock, use the sliders, or type exact
+                  times. Anything that breaks a rule turns
+                  <span class="text-rose-400 font-medium">red</span>, and the
+                  navbar badge tells you why.
+                </p>
+              </div>
+            </div>
+
+            <div
+              @mouseenter="setHowToHover(5)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(5)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="wand-2" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-emerald-400 font-mono mr-1">5</span> Get
+                  recommended breaks
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Tap a <span class="text-slate-200">One-Click Preset</span> for
+                  a ready-made, rule-friendly layout, or hit
+                  <span class="text-slate-200">Auto-Fix Breaks</span> to repair
+                  any schedule instantly.
+                </p>
+              </div>
+            </div>
+
+            <div
+              @mouseenter="setHowToHover(6)"
+              @mouseleave="setHowToHover(null)"
+              :class="howToCardClass(6)"
+              class="howto-fade howto-card p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex gap-3"
+            >
+              <div
+                class="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-100">
+                  <span class="text-purple-400 font-mono mr-1">6</span> Take it
+                  anywhere
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Your schedule saves automatically. Use
+                  <span class="text-slate-200">Port</span> to copy it to another
+                  browser or device.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Background Tab Highlight -->
+          <div
+            class="howto-fade p-4 rounded-xl bg-gradient-to-br from-amber-950/60 via-slate-950/70 to-brand-950/60 border border-amber-500/40 flex gap-3"
+          >
+            <div
+              class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center justify-center shrink-0"
+            >
+              <i data-lucide="bell-ring" class="w-4 h-4"></i>
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-xs font-bold text-amber-100">
+                Leave this tab open in the background
+              </p>
+              <ul class="text-[11px] text-slate-300 leading-relaxed space-y-1">
+                <li>
+                  • The clock shows the exact current time in real time, and the
+                  tab title &amp; icon show live countdowns to your next break
+                  or shift end.
+                </li>
+                <li>
+                  • Turn
+                  <span class="text-amber-300 font-semibold">Alerts ON</span>
+                  in the navbar to get a desktop notification, a chime, and an
+                  on-screen banner 5 minutes before breaks, shift start, and
+                  shift end.
+                </li>
+                <li>
+                  • Press <span class="text-amber-300 font-semibold">Test</span>
+                  to preview what an alert looks and sounds like.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Feedback Invite -->
+          <div
+            class="howto-fade p-3.5 rounded-xl bg-brand-950/40 border border-brand-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div class="flex gap-3">
+              <div
+                class="w-8 h-8 rounded-lg bg-brand-500/15 border border-brand-500/30 text-brand-300 flex items-center justify-center shrink-0"
+              >
+                <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+              </div>
+              <div class="space-y-0.5">
+                <p class="text-xs font-bold text-slate-100">
+                  Want something changed, added, or improved?
+                </p>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Leave your feedback with
+                  <span class="text-slate-200">Leave a Review</span> down below
+                  at the bottom of the page. Every idea is read!
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="closeHowToModal(); setTimeout(() => openReviewModal(), 0)"
+              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600/20 hover:bg-brand-600/35 border border-brand-500/40 hover:border-brand-400/60 text-brand-200 hover:text-white text-xs font-medium transition shrink-0"
+            >
+              Leave feedback
+            </button>
+          </div>
+
+          <div class="howto-fade flex justify-end pt-0.5">
+            <button
+              type="button"
+              @click="closeHowToModal()"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md shadow-brand-500/25 transition"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Cross-Page Optimized Schedule Transfer (Copy & Import) Modal -->
     <div
       x-show="transferModalOpen"
@@ -2543,12 +3129,38 @@
 
           // Navbar Rule Check Popover & Cross-Page Schedule Transfer Modal State
           rulePopoverOpen: false,
+          howToModalOpen: false,
+
+          // Site Update Tracker (version.json is the single source of truth)
+          appVersion: null,
+          updateInfo: null,
+          whatsNewInfo: null,
+          updateCardMode: null,
+          updateVote: null,
+          lastUpdateCheckTs: 0,
+          UPDATE_SEEN_KEY: "schedulable_seen_version",
+          UPDATE_DISMISSED_KEY: "schedulable_update_dismissed",
+          UPDATE_NOTIFIED_KEY: "schedulable_update_notified",
+          howToHover: null,
+          howToRect: null,
+          howToLeaveTimer: null,
+          howToIntentTimer: null,
+          howToPending: null,
+          howToRafId: null,
+          howToLastFrameTs: null,
+          howToHoles: [],
+          howToRingRect: null,
           transferModalOpen: false,
           transferCode: "",
           importCodeInput: "",
           transferCopied: false,
 
           async init() {
+            let hadSavedState = false;
+            try {
+              hadSavedState =
+                localStorage.getItem(this.STORAGE_KEY_V2) !== null;
+            } catch (e) {}
             this.loadSavedState();
             if (!this.breaks || this.breaks.length === 0) {
               this.applyPreset(this.activePreset || "balancedLate");
@@ -2565,6 +3177,7 @@
 
             this.startClock();
             this.refreshIcons();
+            this.initUpdateTracker(hadSavedState);
 
             // Track active shift view in Vercel Web Analytics
             this.trackAnalyticsEvent("app_loaded", {
@@ -4986,6 +5599,322 @@
               "SCHED1:" +
               this.encodeUtf8Base64Url(JSON.stringify(compactPayload))
             );
+          },
+
+          readStorage(key) {
+            try {
+              return localStorage.getItem(key);
+            } catch (e) {
+              return null;
+            }
+          },
+
+          writeStorage(key, value) {
+            try {
+              localStorage.setItem(key, value);
+            } catch (e) {}
+          },
+
+          async fetchVersionInfo() {
+            try {
+              const res = await fetch(`/version.json?t=${Date.now()}`, {
+                cache: "no-store",
+              });
+              if (!res.ok) return null;
+              const data = await res.json();
+              return data && typeof data.version === "string" ? data : null;
+            } catch (e) {
+              return null;
+            }
+          },
+
+          // The version.json fetched at page load is the version this tab is running,
+          // since index.html and version.json are deployed together.
+          async initUpdateTracker(hadSavedState) {
+            const info = await this.fetchVersionInfo();
+            if (!info) return;
+            this.appVersion = info.version;
+            this.lastUpdateCheckTs = Date.now();
+
+            const seen = this.readStorage(this.UPDATE_SEEN_KEY);
+            if (seen !== info.version) {
+              if (seen !== null || hadSavedState) {
+                this.whatsNewInfo = info;
+                this.updateVote = this.readStorage(
+                  `schedulable_update_vote_${info.version}`,
+                );
+                this.updateCardMode = "whatsnew";
+              } else {
+                this.writeStorage(this.UPDATE_SEEN_KEY, info.version);
+              }
+            }
+
+            setInterval(() => this.checkForUpdate(), 10 * 60 * 1000);
+            document.addEventListener("visibilitychange", () => {
+              if (!document.hidden) this.checkForUpdate();
+            });
+            window.addEventListener("focus", () => this.checkForUpdate());
+          },
+
+          async checkForUpdate() {
+            if (!this.appVersion) return;
+            if (Date.now() - this.lastUpdateCheckTs < 60 * 1000) return;
+            this.lastUpdateCheckTs = Date.now();
+
+            const info = await this.fetchVersionInfo();
+            if (!info || info.version === this.appVersion) return;
+            if (this.updateInfo && this.updateInfo.version === info.version)
+              return;
+
+            this.updateInfo = info;
+            if (this.readStorage(this.UPDATE_DISMISSED_KEY) !== info.version) {
+              this.updateCardMode = "update";
+            }
+            this.notifyUpdateSilently(info);
+          },
+
+          notifyUpdateSilently(info) {
+            if (!document.hidden || !this.notificationsEnabled) return;
+            if (
+              typeof Notification === "undefined" ||
+              Notification.permission !== "granted"
+            )
+              return;
+            if (this.readStorage(this.UPDATE_NOTIFIED_KEY) === info.version)
+              return;
+            try {
+              const iconUrl = this.createNotificationIconDataUrl(
+                "#6366f1",
+                "✨",
+              );
+              const n = new Notification("Schedulable has been updated", {
+                body: `${info.title || "A new version is available"} — refresh the tab when you're ready.`,
+                icon: iconUrl,
+                badge: iconUrl,
+                tag: "schedulable-update",
+                silent: true,
+              });
+              n.onclick = () => {
+                window.focus();
+                n.close();
+              };
+              this.writeStorage(this.UPDATE_NOTIFIED_KEY, info.version);
+            } catch (e) {}
+          },
+
+          get updateCardInfo() {
+            return this.updateCardMode === "update"
+              ? this.updateInfo
+              : this.whatsNewInfo;
+          },
+
+          refreshForUpdate() {
+            window.location.reload();
+          },
+
+          dismissUpdateCard() {
+            if (this.updateCardMode === "update" && this.updateInfo) {
+              this.writeStorage(
+                this.UPDATE_DISMISSED_KEY,
+                this.updateInfo.version,
+              );
+            } else if (this.updateCardMode === "whatsnew" && this.appVersion) {
+              this.writeStorage(this.UPDATE_SEEN_KEY, this.appVersion);
+            }
+            this.updateCardMode = null;
+          },
+
+          voteOnUpdate(vote) {
+            const version = this.appVersion;
+            const previous = this.updateVote;
+            if (!version || previous === vote) return;
+            this.updateVote = vote;
+            this.writeStorage(`schedulable_update_vote_${version}`, vote);
+            fetch("/api/update-feedback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ version, vote, previous }),
+              keepalive: true,
+            }).catch(() => {});
+            this.trackAnalyticsEvent("update_feedback", { version, vote });
+          },
+
+          howToTargetFor(cardIndex) {
+            return (
+              {
+                1: "opening",
+                2: "shift",
+                3: "clock",
+                4: "breaks",
+                5: "breaks",
+                6: "port",
+              }[cardIndex] || null
+            );
+          },
+
+          howToCardClass(cardIndex) {
+            return {
+              "howto-active": this.howToHover === cardIndex,
+              "howto-pending":
+                this.howToPending === cardIndex &&
+                this.howToHover !== cardIndex,
+            };
+          },
+
+          // Hover intent: a card only takes over once the pointer rests on it, so
+          // sweeping across cards doesn't flash every section along the way.
+          setHowToHover(cardIndex) {
+            clearTimeout(this.howToIntentTimer);
+            if (cardIndex === null) {
+              this.howToPending = null;
+              this.howToLeaveTimer = setTimeout(
+                () => this.clearHowToFocus(),
+                200,
+              );
+              return;
+            }
+            clearTimeout(this.howToLeaveTimer);
+            if (cardIndex === this.howToHover) {
+              this.howToPending = null;
+              return;
+            }
+            this.howToPending = cardIndex;
+            const delay = this.howToHover === null ? 220 : 170;
+            this.howToIntentTimer = setTimeout(() => {
+              this.howToPending = null;
+              this.activateHowToCard(cardIndex);
+            }, delay);
+          },
+
+          activateHowToCard(cardIndex) {
+            const prevTarget = this.howToTargetFor(this.howToHover);
+            this.howToHover = cardIndex;
+            const key = this.howToTargetFor(cardIndex);
+            const el = key
+              ? document.querySelector(`[data-howto-target="${key}"]`)
+              : null;
+            if (el && key !== prevTarget && key !== "opening" && key !== "port") {
+              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+            if (this.howToRafId === null) this.trackHowToTarget();
+          },
+
+          trackHowToTarget() {
+            if (this.howToRafId !== null) return;
+            this.howToLastFrameTs = null;
+            this.howToRafId = requestAnimationFrame((ts) =>
+              this.howToFrame(ts),
+            );
+          },
+
+          // Each spotlighted section is a "hole" with its own alpha, so the
+          // outgoing section re-blurs while the incoming one clears.
+          howToFrame(ts) {
+            const dt =
+              this.howToLastFrameTs === null
+                ? 16
+                : Math.min(64, ts - this.howToLastFrameTs);
+            this.howToLastFrameTs = ts;
+            const step = dt / 220;
+            const activeKey = this.howToTargetFor(this.howToHover);
+
+            if (activeKey && !this.howToHoles.some((h) => h.key === activeKey)) {
+              this.howToHoles.push({ key: activeKey, rect: null, alpha: 0 });
+            }
+
+            let activeRect = null;
+            this.howToHoles.forEach((h) => {
+              const el = document.querySelector(
+                `[data-howto-target="${h.key}"]`,
+              );
+              const r = el ? el.getBoundingClientRect() : null;
+              if (r && r.width > 0 && r.height > 0) {
+                h.rect = {
+                  x: Math.round(r.left),
+                  y: Math.round(r.top),
+                  w: Math.round(r.width),
+                  h: Math.round(r.height),
+                };
+              }
+              if (h.key === activeKey) {
+                h.alpha = Math.min(1, h.alpha + step);
+                activeRect = h.rect;
+              } else {
+                h.alpha = Math.max(0, h.alpha - step);
+              }
+            });
+            this.howToHoles = this.howToHoles.filter(
+              (h) => h.key === activeKey || h.alpha > 0,
+            );
+
+            const cur = this.howToRect;
+            if (
+              !activeRect !== !cur ||
+              (activeRect &&
+                (cur.x !== activeRect.x ||
+                  cur.y !== activeRect.y ||
+                  cur.w !== activeRect.w ||
+                  cur.h !== activeRect.h))
+            ) {
+              this.howToRect = activeRect;
+              if (activeRect) this.howToRingRect = activeRect;
+            }
+
+            this.renderHowToMask();
+
+            if (activeKey || this.howToHoles.length) {
+              this.howToRafId = requestAnimationFrame((t) =>
+                this.howToFrame(t),
+              );
+            } else {
+              this.howToRafId = null;
+            }
+          },
+
+          // Set directly instead of via :style — Chrome aliases mask-image and
+          // -webkit-mask-image, which makes Alpine's style undo re-apply the old mask.
+          renderHowToMask() {
+            const el = this.$refs.howToBackdrop;
+            if (!el) return;
+            const props = ["mask-image", "-webkit-mask-image"];
+            const holes = this.howToHoles.filter((h) => h.rect && h.alpha > 0);
+            if (!holes.length) {
+              props.forEach((p) => el.style.removeProperty(p));
+              return;
+            }
+            const pad = 8;
+            const cutouts = holes
+              .map((h) => {
+                const a = h.alpha * h.alpha * (3 - 2 * h.alpha);
+                const r = h.rect;
+                return `<rect x='${r.x - pad}' y='${r.y - pad}' width='${r.w + pad * 2}' height='${r.h + pad * 2}' rx='18' fill='black' fill-opacity='${a.toFixed(3)}'/>`;
+              })
+              .join("");
+            const svg =
+              `<svg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'>` +
+              `<defs><mask id='m'><rect width='100%' height='100%' fill='white'/>${cutouts}</mask></defs>` +
+              `<rect width='100%' height='100%' fill='white' mask='url(#m)'/></svg>`;
+            const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+            props.forEach((p) => el.style.setProperty(p, url));
+          },
+
+          clearHowToFocus() {
+            clearTimeout(this.howToLeaveTimer);
+            clearTimeout(this.howToIntentTimer);
+            this.howToPending = null;
+            this.howToHover = null;
+          },
+
+          closeHowToModal() {
+            this.clearHowToFocus();
+            if (this.howToRafId !== null) {
+              cancelAnimationFrame(this.howToRafId);
+              this.howToRafId = null;
+            }
+            this.howToHoles = [];
+            this.howToRect = null;
+            this.renderHowToMask();
+            this.howToModalOpen = false;
           },
 
           openTransferModal() {
